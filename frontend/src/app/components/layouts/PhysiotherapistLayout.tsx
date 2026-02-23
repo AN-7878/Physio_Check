@@ -6,7 +6,6 @@ import {
   Activity, 
   Home, 
   Users, 
-  Upload, 
   MessageSquare, 
   User, 
   LogOut,
@@ -28,7 +27,6 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/physiotherapist/dashboard', icon: Home },
   { label: 'My Patients', path: '/physiotherapist/patients', icon: Users },
-  { label: 'Upload Videos', path: '/physiotherapist/upload', icon: Upload },
   { label: 'Messages', path: '/physiotherapist/messages', icon: MessageSquare },
   { label: 'Profile', path: '/physiotherapist/profile', icon: User }
 ];

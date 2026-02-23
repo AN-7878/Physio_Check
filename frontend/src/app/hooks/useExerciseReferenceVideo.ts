@@ -22,6 +22,8 @@ export function useExerciseReferenceVideo(exerciseId: string | undefined): Refer
   const [video, setVideo] = useState<ReferenceVideo | null>(null);
 
   useEffect(() => {
+    console.log("🔍 useExerciseReferenceVideo called with exerciseId:", exerciseId);
+
     if (!exerciseId) {
       setVideo(null);
       return;
@@ -34,6 +36,8 @@ export function useExerciseReferenceVideo(exerciseId: string | undefined): Refer
         where('exerciseId', '==', exerciseId)
       );
 
+console.log("📡 Querying Firestore for exerciseId:", exerciseId);
+
       const unsubscribe = onSnapshot(
         q,
         (snapshot) => {
@@ -43,6 +47,8 @@ export function useExerciseReferenceVideo(exerciseId: string | undefined): Refer
           }
           const docs = snapshot.docs.map((doc) => {
             const d = doc.data();
+            console.log("📄 Firestore doc data:", d);
+
             const createdAt = d.createdAt instanceof Timestamp
               ? d.createdAt.toDate()
               : (d.createdAt as { toDate?: () => Date })?.toDate?.() ?? undefined;
@@ -59,6 +65,9 @@ export function useExerciseReferenceVideo(exerciseId: string | undefined): Refer
             } as ReferenceVideo & { createdAt?: Date };
           });
           docs.sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0));
+                  console.log("🎥 Final selected video:", docs[0]);
+
+
           setVideo(docs[0] ?? null);
         },
         () => setVideo(null)

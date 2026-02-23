@@ -17,8 +17,8 @@ import { Exercise } from '../../data/exercises';
 
 interface LocationState {
   metrics: {
-    totalReps: number;
-    correctReps: number;
+    total_reps: number;
+    correct_reps: number;
     accuracy: number;
     duration: number;
   };
@@ -91,7 +91,7 @@ export function WorkoutSummary() {
             <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-3">
               <Activity className="w-6 h-6 text-primary" />
             </div>
-            <p className="text-3xl mb-1">{metrics.totalReps}</p>
+            <p className="text-3xl mb-1">{metrics.total_reps}</p>
             <p className="text-sm text-muted-foreground">Total Reps</p>
           </Card>
 
@@ -99,7 +99,7 @@ export function WorkoutSummary() {
             <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-3">
               <CheckCircle2 className="w-6 h-6 text-green-600" />
             </div>
-            <p className="text-3xl mb-1">{metrics.correctReps}</p>
+            <p className="text-3xl mb-1">{metrics.correct_reps}</p>
             <p className="text-sm text-muted-foreground">Correct Reps</p>
           </Card>
 
@@ -138,10 +138,10 @@ export function WorkoutSummary() {
                   {metrics.accuracy >= 75 && (
                     <Badge className="bg-green-100 text-green-700">Excellent Form</Badge>
                   )}
-                  {metrics.totalReps >= 10 && (
+                  {metrics.total_reps >= 10 && (
                     <Badge className="bg-blue-100 text-blue-700">Strong Endurance</Badge>
                   )}
-                  {metrics.correctReps === metrics.totalReps && metrics.totalReps > 0 && (
+                  {metrics.correct_reps === metrics.total_reps && metrics.total_reps > 0 && (
                     <Badge className="bg-purple-100 text-purple-700">Perfect Session</Badge>
                   )}
                 </div>

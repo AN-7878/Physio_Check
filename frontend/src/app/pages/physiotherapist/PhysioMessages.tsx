@@ -3,17 +3,19 @@ import { PhysiotherapistLayout } from '../../components/layouts/PhysiotherapistL
 import { Card } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
-import { User, Send, Paperclip, Video, Search, Phone, MoreVertical, MessageSquare } from 'lucide-react';
+import { User, Send, Paperclip, Search, MessageSquare, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '../../context/AuthContext';
+import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { getFirestoreDb } from '../../config/firebase';
+import { toast } from 'sonner';
 
 interface Patient {
   id: string;
   name: string;
-  lastMessage: string;
-  time: string;
-  unread?: number;
-  online?: boolean;
+  email: string;
+  onboarding?: any;
+  
 }
 
 interface Message {
@@ -23,24 +25,42 @@ interface Message {
   type: string;
 }
 
-const mockPatients: Patient[] = [
-  { id: '1', name: 'John Doe', lastMessage: 'Thanks for the feedback!', time: '10:30 AM', online: true },
-  { id: '2', name: 'Sarah Smith', lastMessage: 'The shoulder exercises are helping.', time: 'Yesterday', online: false },
-  { id: '3', name: 'Michael Brown', lastMessage: 'When is our next session?', time: '2 days ago', unread: 2, online: true },
-];
-
 export function PhysioMessages() {
   const { user } = useAuth();
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(mockPatients[0]);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [chatId, setChatId] = useState<string | null>(null);
+  const [loadingPatients, setLoadingPatients] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    fetchPatients();
+  }, [user?.id]);
+
+  const fetchPatients = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/physiotherapist/patients/${user?.id}`);
+      const data = await response.json();
+      if (response.ok) {
+        setPatients(data.patients);
+      }
+    } catch (error) {
+      console.error('Error fetching patients:', error);
+      toast.error('Failed to load patients');
+    } finally {
+      setLoadingPatients(false);
+    }
+  };
 
   useEffect(() => {
     if (!user || !selectedPatient) return;
 
     const initializeChat = async () => {
+      setLoadingMessages(true);
       try {
         const response = await fetch('http://localhost:5000/chat/create', {
           method: 'POST',
@@ -53,6 +73,9 @@ export function PhysioMessages() {
         }
       } catch (err) {
         console.error('Error initializing chat:', err);
+        toast.error('Failed to initialize chat');
+      } finally {
+        setLoadingMessages(false);
       }
     };
 
@@ -60,24 +83,28 @@ export function PhysioMessages() {
   }, [user, selectedPatient]);
 
   useEffect(() => {
-    if (!chatId) return;
+    if (!chatId || !user) return;
 
-    const fetchMessages = async () => {
-      try {
-        const response = await fetch(`http://localhost:5000/chat/messages/${chatId}`);
-        const data = await response.json();
-        if (data.messages) {
-          setMessages(data.messages);
-        }
-      } catch (err) {
-        console.error('Error fetching messages:', err);
-      }
-    };
+    // Privacy check: roomId must contain current user ID
+    if (!chatId.includes(user.id)) {
+        toast.error("Unauthorized access to chat room");
+        return;
+    }
 
-    fetchMessages();
-    const interval = setInterval(fetchMessages, 3000);
-    return () => clearInterval(interval);
-  }, [chatId]);
+    const db = getFirestoreDb();
+    const messagesRef = collection(db, 'chats', chatId, 'messages');
+    const q = query(messagesRef, orderBy('timestamp', 'asc'), limit(50));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map(doc => doc.data() as Message);
+      setMessages(msgs);
+    }, (error) => {
+      console.error("Error syncing messages:", error);
+      toast.error("Failed to sync messages");
+    });
+
+    return () => unsubscribe();
+  }, [chatId, user?.id]);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -101,13 +128,9 @@ export function PhysioMessages() {
           type: 'text'
         })
       });
-      const response = await fetch(`http://localhost:5000/chat/messages/${chatId}`);
-      const data = await response.json();
-      if (data.messages) {
-        setMessages(data.messages);
-      }
     } catch (err) {
       console.error('Error sending message:', err);
+      toast.error('Failed to send message');
     }
   };
 
@@ -120,7 +143,6 @@ export function PhysioMessages() {
   return (
     <PhysiotherapistLayout>
       <div className="h-[calc(100vh-8rem)] flex gap-6">
-        {/* Patients List */}
         <Card className="w-80 flex flex-col overflow-hidden">
           <div className="p-4 border-b">
             <h3 className="font-semibold mb-4">Patient Conversations</h3>
@@ -130,39 +152,38 @@ export function PhysioMessages() {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {mockPatients.map((patient) => (
+            {loadingPatients ? (
+              <div className="flex items-center justify-center py-10">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : patients.map((patient) => (
               <button
                 key={patient.id}
                 onClick={() => setSelectedPatient(patient)}
-                className={`w-full p-4 flex gap-3 hover:bg-muted transition-colors ${
+                className={`w-full p-4 flex gap-3 hover:bg-muted transition-colors text-left ${
                   selectedPatient?.id === patient.id ? 'bg-primary/5 border-r-4 border-primary' : ''
                 }`}
               >
-                <div className="relative flex-shrink-0">
-                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary font-semibold text-lg">
+                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary font-semibold shrink-0">
                     {patient.name.charAt(0)}
-                  </div>
-                  {patient.online && (
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />
-                  )}
                 </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <div className="flex justify-between items-start mb-1">
-                    <p className="font-medium truncate">{patient.name}</p>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">{patient.time}</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground truncate">{patient.lastMessage}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{patient.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{patient.email}</p>
                 </div>
               </button>
             ))}
+            {!loadingPatients && patients.length === 0 && (
+                <div className="p-10 text-center text-muted-foreground text-sm">
+                    No linked patients found.
+                </div>
+            )}
           </div>
         </Card>
 
-        {/* Chat Area */}
         <Card className="flex-1 flex flex-col overflow-hidden">
           {selectedPatient ? (
             <>
-              {/* Chat Header */}
               <div className="p-4 border-b flex items-center justify-between bg-white">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary font-semibold">
@@ -170,28 +191,32 @@ export function PhysioMessages() {
                   </div>
                   <div>
                     <p className="font-semibold">{selectedPatient.name}</p>
-                    <p className="text-xs text-green-600">{selectedPatient.online ? 'Online' : 'Offline'}</p>
+                    <p className="text-xs text-green-600">Online</p>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="icon"><Phone className="w-4 h-4" /></Button>
-                  <Button variant="outline" size="icon"><Video className="w-4 h-4" /></Button>
-                  <Button variant="outline" size="icon"><MoreVertical className="w-4 h-4" /></Button>
                 </div>
               </div>
 
-              {/* Messages */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-muted/30">
-                {messages.map((msg, idx) => (
+                {loadingMessages ? (
+                    <div className="flex items-center justify-center h-full">
+                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    </div>
+                ) : messages.length === 0 ? (
+                    <div className="text-center py-10 text-muted-foreground text-sm">
+                        No messages yet.
+                    </div>
+                ) : messages.map((msg, idx) => (
                   <div
                     key={idx}
                     className={`flex ${msg.senderId === user?.id ? 'justify-end' : 'justify-start'}`}
                   >
                     <div className={`max-w-[70%] rounded-2xl px-4 py-2 ${
-                      msg.senderId === user?.id ? 'bg-primary text-white' : 'bg-white border'
+                      msg.senderId === user?.id ? 'bg-primary text-white' : 'bg-white border shadow-sm'
                     }`}>
                       <p className="text-sm">{msg.text}</p>
-                      <p className={`text-[10px] mt-1 ${msg.senderId === user?.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                      <p className={`text-[10px] mt-1 ${
+                        msg.senderId === user?.id ? 'text-primary-foreground/70 text-right' : 'text-muted-foreground'
+                      }`}>
                         {formatTime(msg.timestamp)}
                       </p>
                     </div>
@@ -200,7 +225,6 @@ export function PhysioMessages() {
                 <div ref={scrollRef} />
               </div>
 
-              {/* Input Area */}
               <form onSubmit={handleSendMessage} className="p-4 border-t bg-white">
                 <div className="flex gap-2">
                   <Button type="button" variant="outline" size="icon"><Paperclip className="w-4 h-4" /></Button>

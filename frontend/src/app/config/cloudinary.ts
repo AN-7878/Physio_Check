@@ -1,7 +1,15 @@
 /// <reference types="vite/client" />
 /**
- * Cloudinary configuration for unsigned video uploads
- * Set these env vars in .env.local (Vite uses VITE_ prefix)
+ * Force Vite Environment Configuration for Cloudinary
  */
-export const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME ?? '';
-export const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET ?? '';
+export const cloudinaryConfig = {
+  cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME,
+  uploadPreset: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
+};
+
+console.log("Config loaded:", !!cloudinaryConfig.cloudName);
+console.log("Upload Preset loaded:", !!cloudinaryConfig.uploadPreset);
+
+// Keep these for backward compatibility if needed elsewhere
+export const CLOUDINARY_CLOUD_NAME = cloudinaryConfig.cloudName;
+export const CLOUDINARY_UPLOAD_PRESET = cloudinaryConfig.uploadPreset;

@@ -1,13 +1,59 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { PatientLayout } from '../../components/layouts/PatientLayout';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Activity, TrendingUp, Calendar, Play, BarChart3, Target } from 'lucide-react';
+import { Activity, TrendingUp, Calendar, Play, BarChart3, Target, Video, ExternalLink, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useAuth } from '../../context/AuthContext';
+import { retryPendingSync } from '../../services/workoutSessionService';
+import { toast } from 'sonner';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { getFirestoreDb } from '../../config/firebase';
+import { exercises } from '../../data/exercises';
+
+interface AssignedExercise {
+  name: string;
+  video_url: string;
+}
 
 export function Dashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [assignedExercises, setAssignedExercises] = useState<AssignedExercise[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Retry syncing any pending sessions when dashboard loads
+    retryPendingSync().catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    const db = getFirestoreDb();
+    const docRef = doc(db, 'assigned_exercises', user.id);
+    
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setAssignedExercises(data.exercises || []);
+      } else {
+        setAssignedExercises([]);
+      }
+      setLoading(false);
+    }, (error) => {
+      console.error('Error listening to exercise updates:', error);
+      toast.error('Failed to sync exercises in real-time');
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user?.id]);
 
   const stats = [
     { label: 'Sessions This Week', value: '5', icon: Activity, color: 'text-primary', trend: '+2 from last week' },
@@ -16,11 +62,23 @@ export function Dashboard() {
     { label: 'Total Sessions', value: '45', icon: Target, color: 'text-blue-600', trend: 'This month' }
   ];
 
-  const recentActivity = [
-    { exercise: 'Dumbbell Bicep Curl', time: '2 hours ago', accuracy: 92, reps: 15 },
-    { exercise: 'Lateral Raises', time: '1 day ago', accuracy: 85, reps: 12 },
-    { exercise: 'Leg Extensions', time: '2 days ago', accuracy: 88, reps: 18 }
-  ];
+  // SMART MATCHING FUNCTION:
+  // This guarantees that whatever the physio types in Firebase routes to the correct strict ID
+  const getExerciseTargetId = (dbName: string) => {
+    const nameRaw = dbName.toLowerCase();
+    
+    // Keyword fallback to catch typos or shorthand from physiotherapist
+    if (nameRaw.includes('rotator') || nameRaw.includes('cuff')) return 'rotator-cuff';
+    if (nameRaw.includes('wall') || nameRaw.includes('slide')) return 'wall-slides';
+    if (nameRaw.includes('side') || nameRaw.includes('raise')) return 'side-raises';
+    
+    // Strict match fallback
+    const matched = exercises.find(ex => ex.name.toLowerCase().includes(nameRaw) || ex.id === nameRaw.trim().replace(/\s+/g, '-'));
+    if (matched) return matched.id;
+    
+    // Absolute fallback (WorkoutScreen will show "Exercise not found" if it hits this and doesn't exist)
+    return dbName.trim().toLowerCase().replace(/\s+/g, '-');
+  };
 
   return (
     <PatientLayout>
@@ -31,10 +89,101 @@ export function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <h1 className="text-3xl mb-2">Welcome Back!</h1>
+          <h1 className="text-3xl mb-2">Welcome Back, {user?.name}!</h1>
           <p className="text-muted-foreground">
             Ready to continue your recovery journey? Let's make today count.
           </p>
+        </motion.div>
+
+        {/* Assigned Exercises Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <Video className="w-6 h-6 text-primary" /> Your Workout Plan
+            </h2>
+            {loading && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Syncing...
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {assignedExercises.length > 0 ? (
+              assignedExercises.map((exercise, index) => {
+                
+                // Use the smart matching function to get the actual ID
+                const targetId = getExerciseTargetId(exercise.name);
+
+                return (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.2 + index * 0.05 }}
+                  >
+                    <Card className="overflow-hidden group hover:shadow-lg transition-all duration-300">
+                      <div className="aspect-video bg-muted relative flex items-center justify-center">
+                        {exercise.video_url ? (
+                          <video 
+                            src={exercise.video_url} 
+                            className="w-full h-full object-cover"
+                            controls
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center gap-2 p-4 text-center">
+                            <Video className="w-10 h-10 text-muted-foreground/30" />
+                            <p className="text-sm text-muted-foreground">Video instructions coming soon</p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-4">
+                        <h3 className="text-lg font-bold mb-2">{exercise.name}</h3>
+                        <div className="flex gap-2">
+                          <Button 
+                            className="flex-1 bg-primary hover:bg-primary/90 h-10"
+                            onClick={() => navigate(`/workout/${targetId}`, { 
+                              state: { videoUrl: exercise.video_url } 
+                            })}
+                          >
+                            <Play className="w-4 h-4 mr-2" /> Start Now
+                          </Button>
+                          {exercise.video_url && (
+                            <Button 
+                              variant="outline" 
+                              size="icon"
+                              className="h-10 w-10 shrink-0"
+                              onClick={() => window.open(exercise.video_url, '_blank')}
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  </motion.div>
+                );
+              })
+            ) : !loading ? (
+              <Card className="p-12 md:col-span-2 lg:col-span-3 text-center border-dashed bg-muted/30">
+                <Video className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+                <p className="text-lg font-medium text-muted-foreground">No exercises assigned yet.</p>
+                <p className="text-sm text-muted-foreground mb-6">Your physiotherapist will upload videos for you soon.</p>
+                <Button variant="outline" onClick={() => navigate('/choose-physio')}>
+                  Choose a Physiotherapist
+                </Button>
+              </Card>
+            ) : (
+               Array.from({ length: 3 }).map((_, i) => (
+                 <div key={i} className="h-[250px] bg-muted animate-pulse rounded-xl" />
+               ))
+            )}
+          </div>
         </motion.div>
 
         {/* Quick Stats */}
@@ -111,71 +260,6 @@ export function Dashboard() {
             >
               View Analytics
             </Button>
-          </Card>
-        </motion.div>
-
-        {/* Recent Activity */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl">Recent Activity</h2>
-              <Button
-                variant="outline"
-                onClick={() => navigate('/reports')}
-              >
-                View All
-              </Button>
-            </div>
-            <div className="space-y-3">
-              {recentActivity.map((activity, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.5 + index * 0.05 }}
-                  className="flex items-center justify-between p-4 bg-muted rounded-xl"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-primary/10 rounded-xl">
-                      <Activity className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="mb-1">{activity.exercise}</h4>
-                      <p className="text-sm text-muted-foreground">{activity.time}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium">{activity.reps} reps</p>
-                    <p className="text-sm text-green-600">{activity.accuracy}% accuracy</p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </Card>
-        </motion.div>
-
-        {/* Motivational Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-        >
-          <Card className="p-6 bg-gradient-to-r from-green-50 to-emerald-50">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-green-100 rounded-full">
-                <TrendingUp className="w-6 h-6 text-green-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="mb-1">You're doing great!</h3>
-                <p className="text-sm text-muted-foreground">
-                  Your consistency and form have improved by 15% this month. Keep up the excellent work!
-                </p>
-              </div>
-            </div>
           </Card>
         </motion.div>
       </div>

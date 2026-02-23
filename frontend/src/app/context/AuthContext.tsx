@@ -9,6 +9,7 @@ export interface User {
   email: string;
   role: UserRole;
   physio_id?: string | null;
+  onboarded?: boolean;
 }
 
 interface AuthContextType {
@@ -18,6 +19,7 @@ interface AuthContextType {
   logout: () => void;
   updateProfile: (name: string, email: string) => Promise<void>;
   linkPhysio: (physioId: string) => void;
+  setOnboarded: (onboarded: boolean) => void;
   isAuthenticated: boolean;
 }
 
@@ -55,7 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: data.user.name,
         email: data.user.email,
         role,
-        physio_id: data.user.physio_id
+        physio_id: data.user.physio_id,
+        onboarded: data.user.onboarded || false
       };
       
       // Store user data
@@ -88,7 +91,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: data.user.name,
         email: data.user.email,
         role: data.user.role as UserRole,
-        physio_id: data.user.physio_id
+        physio_id: data.user.physio_id ?? null,
+        onboarded: data.user.onboarded || false
       };
       
       setUser(loggedInUser);
@@ -131,7 +135,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ...user,
         name: data.user.name,
         email: data.user.email,
-        physio_id: data.user.physio_id
+        physio_id: data.user.physio_id,
+        onboarded: data.user.onboarded
       };
 
       setUser(updatedUser);
@@ -149,6 +154,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('user', JSON.stringify(updatedUser));
   };
 
+  const setOnboarded = (onboarded: boolean) => {
+    if (!user) return;
+    const updatedUser = { ...user, onboarded };
+    setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -158,6 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         updateProfile,
         linkPhysio,
+        setOnboarded,
         isAuthenticated: !!user
       }}
     >

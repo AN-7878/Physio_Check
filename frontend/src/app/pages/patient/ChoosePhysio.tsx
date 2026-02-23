@@ -1,3 +1,4 @@
+//C:\Users\soumy\final_2\PHYSIOCHECK\frontend\src\app\pages\patient\ChoosePhysio.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { PatientLayout } from '../../components/layouts/PatientLayout';

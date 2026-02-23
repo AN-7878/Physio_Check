@@ -1,59 +1,140 @@
 # =========================
-# Frontend (Node.js / React / Vite)
+# GENERAL
 # =========================
-# Dependencies
-node_modules/
-.pnp
-.pnp.js
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+*.swo
+*.env
+*.env.*
+.env.local
+.env.development
+.env.production
 
-# Build outputs
+# =========================
+# NODE / REACT / VITE
+# =========================
+node_modules/
 dist/
 build/
-out/
+.vite/
+.cache/
+*.tsbuildinfo
+coverage/
 
-# Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Vite specific
+vite.config.ts.timestamp-*
 
 # =========================
-# Backend (Python)
+# TYPESCRIPT
 # =========================
-# Byte-compiled / optimized / DLL files
+*.tsbuildinfo
+
+# =========================
+# FIREBASE
+# =========================
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Firebase service account keys
+*firebase-adminsdk*.json
+serviceAccountKey.json
+
+# =========================
+# FLASK / PYTHON
+# =========================
 __pycache__/
-*.py[cod]
-*$py.class
-
-# Virtual Environments
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+instance/
+.flaskenv
 venv/
 env/
+ENV/
 .venv/
-.env/
 
-# Local database files (if using SQLite)
-*.sqlite3
-db.sqlite3
-
-# =========================
-# General & Environment Files
-# =========================
-# Secrets and environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# Python packaging
+build/
+develop-eggs/
+dist/
+downloads/
+.eggs/
+*.egg-info/
+*.egg
 
 # =========================
-# OS & Editor Files
+# OPENCV / MEDIAPIPE MODELS
 # =========================
-# Mac
-.DS_Store
+*.onnx
+*.tflite
+*.h5
+*.pth
+*.pt
+*.pb
+*.weights
+models/
+checkpoints/
 
-# Windows
-Thumbs.db
+# =========================
+# FACE-API.JS MODELS
+# =========================
+public/models/
+models/
 
-# IDEs
-.vscode/
+# =========================
+# JAVA
+# =========================
+*.class
+*.jar
+*.war
+*.ear
+target/
+build/
+.gradle/
+.gradle-cache/
+
+# IntelliJ / Eclipse
 .idea/
-*.swp
+*.iml
+.project
+.classpath
+.settings/
+
+# =========================
+# TWS / IDE FILES
+# =========================
+.vscode/
+.history/
+
+# =========================
+# DATABASE
+# =========================
+*.db
+*.sqlite
+*.sqlite3
+
+# =========================
+# OS GENERATED
+# =========================
+ehthumbs.db
+Desktop.ini
+
+# =========================
+# TESTING
+# =========================
+coverage/
+htmlcov/
+.pytest_cache/
+
+# =========================
+# TEMP FILES
+# =========================
+tmp/
+temp/
+uploads/

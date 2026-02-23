@@ -3,10 +3,12 @@ import { PatientLayout } from '../../components/layouts/PatientLayout';
 import { Card } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
-import { Avatar } from '../../components/ui/avatar';
-import { Send, Paperclip, Video, User, Search } from 'lucide-react';
+import { Send, Paperclip, User, Search, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '../../context/AuthContext';
+import { collection, query, orderBy, limit, onSnapshot, doc } from 'firebase/firestore';
+import { getFirestoreDb } from '../../config/firebase';
+import { toast } from 'sonner';
 
 interface Message {
   senderId: string;
@@ -20,23 +22,21 @@ export function Messages() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [chatId, setChatId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // For demo purposes, we'll try to find or create a chat with a default physio ID
-  const DEFAULT_PHYSIO_ID = 'demo-physio-id';
-
   useEffect(() => {
-    if (!user) return;
+    if (!user || !user.physio_id) {
+        setLoading(false);
+        return;
+    }
 
     const initializeChat = async () => {
       try {
-        // In a real app, you'd fetch the existing chat ID for this patient/physio pair
-        // For now, let's assume we have one or create it
         const response = await fetch('http://localhost:5000/chat/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ patient_id: user.id, physio_id: DEFAULT_PHYSIO_ID })
+          body: JSON.stringify({ patient_id: user.id, physio_id: user.physio_id })
         });
         const data = await response.json();
         if (data.chat_id) {
@@ -44,6 +44,9 @@ export function Messages() {
         }
       } catch (err) {
         console.error('Error initializing chat:', err);
+        toast.error('Failed to initialize chat');
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -51,24 +54,28 @@ export function Messages() {
   }, [user]);
 
   useEffect(() => {
-    if (!chatId) return;
+    if (!chatId || !user) return;
 
-    const fetchMessages = async () => {
-      try {
-        const response = await fetch(`http://localhost:5000/chat/messages/${chatId}`);
-        const data = await response.json();
-        if (data.messages) {
-          setMessages(data.messages);
-        }
-      } catch (err) {
-        console.error('Error fetching messages:', err);
-      }
-    };
+    // Verify privacy: roomId must contain user.id
+    if (!chatId.includes(user.id)) {
+        toast.error("Unauthorized access to chat room");
+        return;
+    }
 
-    fetchMessages();
-    const interval = setInterval(fetchMessages, 3000); // Poll for new messages
-    return () => clearInterval(interval);
-  }, [chatId]);
+    const db = getFirestoreDb();
+    const messagesRef = collection(db, 'chats', chatId, 'messages');
+    const q = query(messagesRef, orderBy('timestamp', 'asc'), limit(50));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map(doc => doc.data() as Message);
+      setMessages(msgs);
+    }, (error) => {
+      console.error("Error listening to messages:", error);
+      toast.error("Failed to sync messages");
+    });
+
+    return () => unsubscribe();
+  }, [chatId, user?.id]);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -92,14 +99,9 @@ export function Messages() {
           type: 'text'
         })
       });
-      // Refresh messages immediately
-      const response = await fetch(`http://localhost:5000/chat/messages/${chatId}`);
-      const data = await response.json();
-      if (data.messages) {
-        setMessages(data.messages);
-      }
     } catch (err) {
       console.error('Error sending message:', err);
+      toast.error('Failed to send message');
     }
   };
 
@@ -113,116 +115,65 @@ export function Messages() {
     });
   };
 
+  if (!user?.physio_id) {
+      return (
+          <PatientLayout>
+              <div className="flex flex-col items-center justify-center h-[calc(100vh-16rem)] text-center">
+                  <User className="w-16 h-16 text-muted-foreground/30 mb-4" />
+                  <h2 className="text-xl font-bold mb-2">No Physiotherapist Assigned</h2>
+                  <p className="text-muted-foreground">Please choose a physiotherapist to start chatting.</p>
+                  <Button className="mt-4" onClick={() => window.location.href = '/choose-physio'}>Choose Physiotherapist</Button>
+              </div>
+          </PatientLayout>
+      );
+  }
+
   return (
     <PatientLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <h1 className="text-3xl mb-2">Messages</h1>
-          <p className="text-muted-foreground">
-            Chat with your physiotherapist for guidance and support
-          </p>
-        </motion.div>
-
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Conversation List (Sidebar) */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-            className="lg:col-span-4"
-          >
-            <Card className="h-[calc(100vh-16rem)]">
-              <div className="p-4 border-b border-border">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="Search conversations..." 
-                    className="pl-10 bg-muted border-0"
-                  />
-                </div>
-              </div>
-
-              <div className="overflow-y-auto">
-                <button className="w-full p-4 hover:bg-muted transition-colors border-l-4 border-primary bg-primary/5">
-                  <div className="flex items-start gap-3">
-                    <div className="relative">
-                      <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                        <User className="w-6 h-6 text-primary" />
-                      </div>
-                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
-                    </div>
-                    <div className="flex-1 text-left min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="font-medium truncate">Physiotherapist</p>
-                        <span className="text-xs text-muted-foreground">Online</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {messages.length > 0 ? messages[messages.length - 1].text : 'Start a conversation'}
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              </div>
-            </Card>
-          </motion.div>
-
-          {/* Chat Window */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-            className="lg:col-span-8"
+            className="lg:col-span-12"
           >
-            <Card className="h-[calc(100vh-16rem)] flex flex-col">
-              {/* Chat Header */}
+            <Card className="h-[calc(100vh-12rem)] flex flex-col">
               <div className="p-4 border-b border-border flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                      <User className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
+                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold">
+                    P
                   </div>
                   <div>
-                    <p className="font-medium">Physiotherapist</p>
+                    <p className="font-medium">Your Physiotherapist</p>
                     <p className="text-xs text-green-600">Online</p>
                   </div>
                 </div>
               </div>
 
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                {messages.map((message, index) => (
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-muted/30">
+                {loading ? (
+                    <div className="flex items-center justify-center h-full">
+                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    </div>
+                ) : messages.length === 0 ? (
+                    <div className="text-center py-10 text-muted-foreground">
+                        No messages yet. Say hi!
+                    </div>
+                ) : messages.map((message, index) => (
                   <motion.div
                     key={index}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className={`flex gap-3 ${
-                      message.senderId === user?.id ? 'flex-row-reverse' : ''
+                    className={`flex ${
+                      message.senderId === user?.id ? 'justify-end' : 'justify-start'
                     }`}
                   >
-                    {message.senderId !== user?.id && (
-                      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                        <User className="w-4 h-4 text-primary" />
-                      </div>
-                    )}
-
-                    <div className={`flex-1 max-w-[70%] ${
-                      message.senderId === user?.id ? 'flex justify-end' : ''
+                    <div className={`max-w-[70%] rounded-2xl px-4 py-2 ${
+                      message.senderId === user?.id ? 'bg-primary text-white' : 'bg-white border shadow-sm'
                     }`}>
-                      <div className={`rounded-2xl p-4 ${
-                        message.senderId === user?.id
-                          ? 'bg-primary text-white'
-                          : 'bg-muted'
-                      }`}>
-                        <p className="text-sm leading-relaxed">{message.text}</p>
-                      </div>
-                      <p className={`text-xs text-muted-foreground mt-1 ${
-                        message.senderId === user?.id ? 'text-right' : ''
+                      <p className="text-sm">{message.text}</p>
+                      <p className={`text-[10px] mt-1 ${
+                        message.senderId === user?.id ? 'text-primary-foreground/70 text-right' : 'text-muted-foreground'
                       }`}>
                         {formatTime(message.timestamp)}
                       </p>
@@ -232,27 +183,16 @@ export function Messages() {
                 <div ref={scrollRef} />
               </div>
 
-              {/* Input */}
-              <form onSubmit={handleSendMessage} className="p-4 border-t border-border">
+              <form onSubmit={handleSendMessage} className="p-4 border-t border-border bg-white">
                 <div className="flex gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="flex-shrink-0"
-                  >
-                    <Paperclip className="w-5 h-5" />
-                  </Button>
+                  <Button type="button" variant="outline" size="icon"><Paperclip className="w-5 h-5" /></Button>
                   <Input
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder="Type your message..."
-                    className="flex-1 bg-muted border-0"
+                    className="flex-1"
                   />
-                  <Button
-                    type="submit"
-                    className="flex-shrink-0 bg-primary hover:bg-primary/90"
-                  >
+                  <Button type="submit" className="bg-primary hover:bg-primary/90">
                     <Send className="w-5 h-5" />
                   </Button>
                 </div>

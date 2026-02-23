@@ -1,4 +1,4 @@
-
+#C:\Users\soumy\final_2\PHYSIOCHECK\backend\db.py
 import firebase_admin
 from firebase_admin import credentials, firestore
 import os
@@ -24,14 +24,24 @@ if not firebase_admin._apps:
 db = firestore.client()
 
 # ----------------- LIVE CHAT FUNCTIONS -----------------
+def get_chat_id(patient_id, physio_id):
+    """Generate a consistent chat ID by sorting participant IDs"""
+    ids = sorted([patient_id, physio_id])
+    return f"chat_{ids[0]}_{ids[1]}"
+
 def create_chat(patient_id, physio_id):
-    """Create a new chat room between patient and physiotherapist"""
-    chat_ref = db.collection("chats").document()
-    chat_ref.set({
-        "participants": [patient_id, physio_id],
-        "lastUpdated": datetime.now(timezone.utc)  # timezone-aware UTC
-    })
-    return chat_ref.id
+    """Create or get a chat room between patient and physiotherapist"""
+    chat_id = get_chat_id(patient_id, physio_id)
+    chat_ref = db.collection("chats").document(chat_id)
+    
+    doc = chat_ref.get()
+    if not doc.exists:
+        chat_ref.set({
+            "id": chat_id,
+            "participants": [patient_id, physio_id],
+            "lastUpdated": datetime.now(timezone.utc)
+        })
+    return chat_id
 
 def send_message(chat_id, sender_id, text, msg_type="text"):
     """Send a message in a chat room"""

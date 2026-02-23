@@ -17,9 +17,9 @@ export interface Exercise {
   targetMuscles: string[];
   instructions: string[];
   postureCues: string[];
+  videoUrl?: string; // Links to the video in your public folder
 }
 
-// Updated to only include the Rotator Cuff exercise that exists in EXERCISE_CONFIGS
 export const exercises: Exercise[] = [
   {
     id: 'rotator-cuff',
@@ -28,9 +28,31 @@ export const exercises: Exercise[] = [
     difficulty: 'Intermediate',
     description: 'Advanced DTW-tracked rotator cuff rehabilitation.',
     targetMuscles: ['Rotator Cuff', 'Shoulder Stabilizers'],
-    // Added optional chaining (?) just to be perfectly safe
     instructions: EXERCISE_CONFIGS['rotator-cuff']?.instructions || [],
-    postureCues: EXERCISE_CONFIGS['rotator-cuff']?.postureCues || []
+    postureCues: EXERCISE_CONFIGS['rotator-cuff']?.postureCues || [],
+    videoUrl: '/rotator_cuff_1_rep.mp4'
+  },
+  {
+    id: 'wall-slides',
+    name: 'Wall Slides',
+    category: 'upper-body',
+    difficulty: 'Beginner',
+    description: 'Improves shoulder mobility and back posture.',
+    targetMuscles: ['Shoulders', 'Upper Back'],
+    instructions: EXERCISE_CONFIGS['wall-slides']?.instructions || [],
+    postureCues: EXERCISE_CONFIGS['wall-slides']?.postureCues || [],
+    videoUrl: '/wall_slides.mp4' 
+  },
+  {
+    id: 'side-raises',
+    name: 'Side Raises',
+    category: 'upper-body',
+    difficulty: 'Beginner',
+    description: 'Improves lateral deltoid strength and shoulder mobility.',
+    targetMuscles: ['Lateral Deltoids', 'Shoulders'],
+    instructions: EXERCISE_CONFIGS['side-raises']?.instructions || [],
+    postureCues: EXERCISE_CONFIGS['side-raises']?.postureCues || [],
+    videoUrl: '/side_raises.mp4' 
   }
 ];
 

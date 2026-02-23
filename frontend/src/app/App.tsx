@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Signup } from './pages/Signup';
 import { Login } from './pages/Login';
+import { Onboarding } from './pages/patient/Onboarding';
 import { PhysioMessages } from './pages/physiotherapist/PhysioMessages';
 import { PhysioProfile } from './pages/physiotherapist/PhysioProfile';
 
@@ -17,7 +18,7 @@ import { ChoosePhysio } from './pages/patient/ChoosePhysio';
 
 // Physiotherapist pages
 import { Dashboard } from './pages/physiotherapist/Dashboard';
-import { UploadVideos } from './pages/physiotherapist/UploadVideos';
+import { PatientAnalysis } from './pages/physiotherapist/PatientAnalysis';
 
 import { Toaster } from './components/ui/sonner';
 
@@ -37,9 +38,13 @@ function ProtectedRoute({
   if (allowedRole && user?.role !== allowedRole) {
     // Redirect to appropriate dashboard based on role
     const dashboardPath = user?.role === 'patient' 
-      ? (user.physio_id ? '/dashboard' : '/choose-physio')
+      ? (user.onboarded ? (user.physio_id ? '/dashboard' : '/choose-physio') : '/onboarding')
       : '/physiotherapist/dashboard';
     return <Navigate to={dashboardPath} replace />;
+  }
+
+  if (user?.role === 'patient' && !user.onboarded && window.location.pathname !== '/onboarding') {
+    return <Navigate to="/onboarding" replace />;
   }
 
   return <>{children}</>;
@@ -54,7 +59,7 @@ function AppRoutes() {
       <Route 
         path="/signup" 
         element={isAuthenticated ? (
-          <Navigate to={user?.role === 'patient' ? (user.physio_id ? '/dashboard' : '/choose-physio') : '/physiotherapist/dashboard'} replace />
+          <Navigate to={user?.role === 'patient' ? (user.onboarded ? (user.physio_id ? '/dashboard' : '/choose-physio') : '/onboarding') : '/physiotherapist/dashboard'} replace />
         ) : (
           <Signup />
         )} 
@@ -62,13 +67,21 @@ function AppRoutes() {
       <Route 
         path="/login" 
         element={isAuthenticated ? (
-          <Navigate to={user?.role === 'patient' ? '/dashboard' : '/physiotherapist/dashboard'} replace />
+          <Navigate to={user?.role === 'patient' ? (user.onboarded ? (user.physio_id ? '/dashboard' : '/choose-physio') : '/onboarding') : '/physiotherapist/dashboard'} replace />
         ) : (
           <Login />
         )} 
       />
 
       {/* Patient Routes */}
+      <Route
+        path="/onboarding"
+        element={
+          <ProtectedRoute allowedRole="patient">
+            <Onboarding />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/dashboard"
         element={
@@ -160,10 +173,10 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/physiotherapist/upload"
+        path="/physiotherapist/patient/:patientId/analysis"
         element={
           <ProtectedRoute allowedRole="physiotherapist">
-            <UploadVideos />
+            <PatientAnalysis />
           </ProtectedRoute>
         }
       />
