@@ -35,14 +35,15 @@ function ProtectedRoute({
     return <Navigate to="/login" replace />;
   }
 
+  // If they are trying to access a page meant for the other role
   if (allowedRole && user?.role !== allowedRole) {
-    // Redirect to appropriate dashboard based on role
     const dashboardPath = user?.role === 'patient' 
       ? (user.onboarded ? (user.physio_id ? '/dashboard' : '/choose-physio') : '/onboarding')
       : '/physiotherapist/dashboard';
     return <Navigate to={dashboardPath} replace />;
   }
 
+  // RESTORED: Force patient to Onboarding if they haven't completed it
   if (user?.role === 'patient' && !user.onboarded && window.location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />;
   }
@@ -202,7 +203,7 @@ function AppRoutes() {
         path="/" 
         element={
           isAuthenticated ? (
-            <Navigate to={user?.role === 'patient' ? (user.physio_id ? '/dashboard' : '/choose-physio') : '/physiotherapist/dashboard'} replace />
+            <Navigate to={user?.role === 'patient' ? (user.onboarded ? (user.physio_id ? '/dashboard' : '/choose-physio') : '/onboarding') : '/physiotherapist/dashboard'} replace />
           ) : (
             <Navigate to="/login" replace />
           )

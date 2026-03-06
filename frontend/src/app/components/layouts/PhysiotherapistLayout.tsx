@@ -1,9 +1,7 @@
 import React, { useState, ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { useAuth } from '../../context/AuthContext';
-import { Button } from '../ui/button';
 import { 
-  Activity, 
   Home, 
   Users, 
   MessageSquare, 
@@ -51,8 +49,7 @@ export function PhysiotherapistLayout({ children }: PhysiotherapistLayoutProps) 
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-border">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3">
-            <Activity className="w-6 h-6 text-primary" />
-            <span className="font-semibold">PhysioFit AI</span>
+            <span className="font-semibold text-lg text-primary tracking-tight">Physio-Check</span>
           </div>
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -102,19 +99,18 @@ export function PhysiotherapistLayout({ children }: PhysiotherapistLayoutProps) 
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="p-6 border-b border-sidebar-border">
-            <div className="flex items-center gap-3">
-              <Activity className="w-8 h-8 text-primary" strokeWidth={2} />
-              {sidebarOpen && (
-                <motion.span
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="font-semibold text-lg"
-                >
-                  PhysioFit AI
-                </motion.span>
-              )}
-            </div>
+          <div className="p-6 border-b border-sidebar-border flex items-center justify-center">
+            {sidebarOpen ? (
+              <motion.span
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="font-bold text-xl text-primary tracking-tight w-full text-left"
+              >
+                Physio-Check
+              </motion.span>
+            ) : (
+              <span className="font-bold text-xl text-primary tracking-tight">PC</span>
+            )}
           </div>
 
           {/* Navigation */}
@@ -139,7 +135,7 @@ export function PhysiotherapistLayout({ children }: PhysiotherapistLayoutProps) 
                     <motion.span
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      className="text-sm"
+                      className="text-sm font-medium"
                     >
                       {item.label}
                     </motion.span>
@@ -157,7 +153,7 @@ export function PhysiotherapistLayout({ children }: PhysiotherapistLayoutProps) 
                 animate={{ opacity: 1 }}
                 className="px-4 py-3 bg-sidebar-accent rounded-xl mb-2"
               >
-                <p className="text-sm text-sidebar-foreground truncate">{user.name}</p>
+                <p className="text-sm font-medium text-sidebar-foreground truncate">{user.name}</p>
                 <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                 <p className="text-xs text-primary mt-1">Physiotherapist</p>
               </motion.div>
@@ -173,7 +169,7 @@ export function PhysiotherapistLayout({ children }: PhysiotherapistLayoutProps) 
                 <motion.span
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="text-sm"
+                  className="text-sm font-medium"
                 >
                   Logout
                 </motion.span>
@@ -184,7 +180,7 @@ export function PhysiotherapistLayout({ children }: PhysiotherapistLayoutProps) 
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className="w-full flex items-center justify-center px-4 py-3 rounded-xl hover:bg-sidebar-accent transition-all"
             >
-              <Menu className="w-5 h-5" />
+              <Menu className="w-5 h-5 text-sidebar-foreground" />
             </button>
           </div>
         </div>
@@ -251,10 +247,10 @@ function MobileNav({
                 navigate(item.path);
                 setMobileMenuOpen(false);
               }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${
                 active
                   ? 'bg-primary text-white'
-                  : 'hover:bg-muted'
+                  : 'hover:bg-muted text-foreground'
               }`}
             >
               <Icon className="w-5 h-5" />
@@ -268,7 +264,7 @@ function MobileNav({
       <div className="p-4 border-t border-border">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-destructive/10 text-destructive transition-all"
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-destructive/10 text-destructive transition-all font-medium"
         >
           <LogOut className="w-5 h-5" />
           <span className="text-sm">Logout</span>

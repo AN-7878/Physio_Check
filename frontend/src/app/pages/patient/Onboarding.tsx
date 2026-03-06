@@ -65,7 +65,7 @@ export function Onboarding() {
         className="w-full max-w-2xl"
       >
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-2">Welcome to PhysioFit AI</h1>
+          <h1 className="text-4xl font-bold mb-2">Welcome to Physio-Check</h1>
           <p className="text-muted-foreground">Please tell us more about yourself to personalize your experience.</p>
         </div>
 

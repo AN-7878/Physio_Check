@@ -1,3 +1,4 @@
+//E:\techfiesta_final\Physio_Check\frontend\src\app\pages\patient\WorkoutSummary.tsx
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { Card } from '../../components/ui/card';

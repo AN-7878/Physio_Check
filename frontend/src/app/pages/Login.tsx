@@ -1,4 +1,3 @@
-//C:\Users\soumy\final_2\PHYSIOCHECK\frontend\src\app\pages\Login.tsx
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router';
 import { useAuth } from '../context/AuthContext';
@@ -27,11 +26,16 @@ export function Login() {
     try {
       await login(email, password, rememberMe);
       
-      // Get updated user from localStorage after login
       const storedUser = localStorage.getItem('user');
       if (storedUser) {
         const loggedInUser = JSON.parse(storedUser);
-        navigate(loggedInUser.role === 'patient' ? '/dashboard' : '/physiotherapist/dashboard');
+        
+        // RESTORED: Check onboarding status for patients
+        if (loggedInUser.role === 'patient') {
+          navigate(loggedInUser.onboarded ? (loggedInUser.physio_id ? '/dashboard' : '/choose-physio') : '/onboarding');
+        } else {
+          navigate('/physiotherapist/dashboard');
+        }
       }
     } catch (err) {
       setError('Invalid email or password');

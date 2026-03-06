@@ -54,7 +54,7 @@ export function PatientLayout({ children }: PatientLayoutProps) {
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3">
             <Activity className="w-6 h-6 text-primary" />
-            <span className="font-semibold">PhysioFit AI</span>
+            <span className="font-semibold">Physio-Check</span>
           </div>
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -113,7 +113,7 @@ export function PatientLayout({ children }: PatientLayoutProps) {
                   animate={{ opacity: 1 }}
                   className="font-semibold text-lg"
                 >
-                  PhysioFit AI
+                  Physio-Check
                 </motion.span>
               )}
             </div>

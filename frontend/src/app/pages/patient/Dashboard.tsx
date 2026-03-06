@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router';
 import { PatientLayout } from '../../components/layouts/PatientLayout';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Activity, TrendingUp, Calendar, Play, BarChart3, Target, Video, ExternalLink, Loader2 } from 'lucide-react';
+import { Activity, TrendingUp, Calendar, Play, BarChart3, Target, Video, ExternalLink, Loader2, ArrowRight } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '../../context/AuthContext';
 import { retryPendingSync } from '../../services/workoutSessionService';
 import { toast } from 'sonner';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, collection, getDocs } from 'firebase/firestore';
 import { getFirestoreDb } from '../../config/firebase';
 import { exercises } from '../../data/exercises';
 
@@ -22,9 +22,16 @@ export function Dashboard() {
   const { user } = useAuth();
   const [assignedExercises, setAssignedExercises] = useState<AssignedExercise[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Real stats from Backend
+  const [statsData, setStatsData] = useState({
+    sessionsThisWeek: 0,
+    streak: 0,
+    avgAccuracy: 0,
+    totalSessions: 0
+  });
 
   useEffect(() => {
-    // Retry syncing any pending sessions when dashboard loads
     retryPendingSync().catch(console.error);
   }, []);
 
@@ -36,8 +43,9 @@ export function Dashboard() {
 
     setLoading(true);
     const db = getFirestoreDb();
-    const docRef = doc(db, 'assigned_exercises', user.id);
     
+    // 1. Fetch Assigned Exercises
+    const docRef = doc(db, 'assigned_exercises', user.id);
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -52,112 +60,204 @@ export function Dashboard() {
       setLoading(false);
     });
 
+    // 2. Fetch Actual Workout Stats
+    const fetchStats = async () => {
+      try {
+        // CRITICAL FIX: Point directly to the nested collection your service file uses!
+        const sessionsRef = collection(db, 'patient_sessions', user.id, 'sessions');
+        const snapshot = await getDocs(sessionsRef);
+        
+        let totalAcc = 0;
+        let totalSessions = snapshot.size;
+        let thisWeekCount = 0;
+        
+        const now = new Date();
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const dates: Date[] = [];
+
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          totalAcc += data.accuracy || 0;
+          
+          // CRITICAL FIX: Parse the ISO strings that your service file saves
+          let sessionDate = new Date();
+          if (data.timestamp) sessionDate = new Date(data.timestamp);
+          else if (data.server_timestamp) sessionDate = new Date(data.server_timestamp);
+
+          dates.push(sessionDate);
+
+          if (sessionDate > oneWeekAgo) {
+            thisWeekCount++;
+          }
+        });
+
+        const avgAccuracy = totalSessions > 0 ? Math.round(totalAcc / totalSessions) : 0;
+
+        // Calculate Real Consecutive Day Streak
+        let currentStreak = 0;
+        if (dates.length > 0) {
+          dates.sort((a, b) => b.getTime() - a.getTime()); // Newest first
+          const uniqueDays = [...new Set(dates.map(d => d.toISOString().split('T')[0]))];
+          
+          const todayStr = now.toISOString().split('T')[0];
+          const yesterday = new Date(now);
+          yesterday.setDate(yesterday.getDate() - 1);
+          const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+          // Check if streak is currently active (worked out today or yesterday)
+          if (uniqueDays[0] === todayStr || uniqueDays[0] === yesterdayStr) {
+            currentStreak = 1;
+            let checkDate = new Date(uniqueDays[0]);
+            
+            for (let i = 1; i < uniqueDays.length; i++) {
+              const expectedNextDay = new Date(checkDate);
+              expectedNextDay.setDate(expectedNextDay.getDate() - 1);
+              const expectedStr = expectedNextDay.toISOString().split('T')[0];
+              
+              if (uniqueDays[i] === expectedStr) {
+                currentStreak++;
+                checkDate = expectedNextDay;
+              } else {
+                break;
+              }
+            }
+          }
+        }
+
+        setStatsData({
+          totalSessions,
+          avgAccuracy,
+          sessionsThisWeek: thisWeekCount,
+          streak: currentStreak
+        });
+
+      } catch (error) {
+        console.error('Error fetching analytics:', error);
+      }
+    };
+
+    fetchStats();
+
     return () => unsubscribe();
   }, [user?.id]);
 
   const stats = [
-    { label: 'Sessions This Week', value: '5', icon: Activity, color: 'text-primary', trend: '+2 from last week' },
-    { label: 'Current Streak', value: '12 Days', icon: Calendar, color: 'text-amber-600', trend: 'Keep it up!' },
-    { label: 'Avg. Accuracy', value: '87%', icon: TrendingUp, color: 'text-green-600', trend: '+5% improvement' },
-    { label: 'Total Sessions', value: '45', icon: Target, color: 'text-blue-600', trend: 'This month' }
+    { label: 'Sessions This Week', value: statsData.sessionsThisWeek.toString(), icon: Activity, color: 'text-primary', trend: 'Last 7 days' },
+    { label: 'Current Streak', value: `${statsData.streak} Days`, icon: Calendar, color: 'text-amber-600', trend: statsData.streak > 0 ? 'Active' : 'Start today!' },
+    { label: 'Avg. Accuracy', value: `${statsData.avgAccuracy}%`, icon: TrendingUp, color: 'text-green-600', trend: 'Overall accuracy' },
+    { label: 'Total Sessions', value: statsData.totalSessions.toString(), icon: Target, color: 'text-blue-600', trend: 'All time' }
   ];
 
-  // SMART MATCHING FUNCTION:
-  // This guarantees that whatever the physio types in Firebase routes to the correct strict ID
   const getExerciseTargetId = (dbName: string) => {
     const nameRaw = dbName.toLowerCase();
-    
-    // Keyword fallback to catch typos or shorthand from physiotherapist
     if (nameRaw.includes('rotator') || nameRaw.includes('cuff')) return 'rotator-cuff';
     if (nameRaw.includes('wall') || nameRaw.includes('slide')) return 'wall-slides';
     if (nameRaw.includes('side') || nameRaw.includes('raise')) return 'side-raises';
     
-    // Strict match fallback
     const matched = exercises.find(ex => ex.name.toLowerCase().includes(nameRaw) || ex.id === nameRaw.trim().replace(/\s+/g, '-'));
     if (matched) return matched.id;
-    
-    // Absolute fallback (WorkoutScreen will show "Exercise not found" if it hits this and doesn't exist)
     return dbName.trim().toLowerCase().replace(/\s+/g, '-');
   };
 
   return (
     <PatientLayout>
-      <div className="space-y-8">
-        {/* Welcome Section */}
+      <div className="max-w-6xl mx-auto space-y-10">
+        
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.4 }}
+          className="flex flex-col md:flex-row md:items-end justify-between gap-4"
         >
-          <h1 className="text-3xl mb-2">Welcome Back, {user?.name}!</h1>
-          <p className="text-muted-foreground">
-            Ready to continue your recovery journey? Let's make today count.
-          </p>
+          <div>
+            <p className="text-sm font-medium text-primary mb-1 tracking-wide uppercase">Physio-Check Portal</p>
+            <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+              Hello, {user?.name?.split(' ')[0] || 'there'}
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Here is your active recovery overview for today.
+            </p>
+          </div>
+          <Button 
+            onClick={() => navigate('/start-workout')}
+            className="shrink-0 rounded-full px-6"
+          >
+            Start Session <ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
         </motion.div>
 
-        {/* Assigned Exercises Section */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+          className="grid grid-cols-2 lg:grid-cols-4 gap-4"
         >
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold flex items-center gap-2">
-              <Video className="w-6 h-6 text-primary" /> Your Workout Plan
-            </h2>
-            {loading && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Syncing...
+          {stats.map((stat, index) => (
+            <Card key={stat.label} className="p-5 border-border/50 shadow-sm hover:shadow transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium text-muted-foreground">{stat.label}</span>
+                <stat.icon className={`w-4 h-4 ${stat.color} opacity-70`} />
               </div>
-            )}
-          </div>
+              <div className="flex flex-col">
+                <span className="text-2xl font-semibold">{stat.value}</span>
+                <span className="text-xs text-muted-foreground mt-1">{stat.trend}</span>
+              </div>
+            </Card>
+          ))}
+        </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {assignedExercises.length > 0 ? (
-              assignedExercises.map((exercise, index) => {
-                
-                // Use the smart matching function to get the actual ID
-                const targetId = getExerciseTargetId(exercise.name);
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <motion.div 
+            className="lg:col-span-2 space-y-6"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold tracking-tight">Your Plan</h2>
+              {loading && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Syncing
+                </div>
+              )}
+            </div>
 
-                return (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.2 + index * 0.05 }}
-                  >
-                    <Card className="overflow-hidden group hover:shadow-lg transition-all duration-300">
-                      <div className="aspect-video bg-muted relative flex items-center justify-center">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {assignedExercises.length > 0 ? (
+                assignedExercises.map((exercise, index) => {
+                  const targetId = getExerciseTargetId(exercise.name);
+
+                  return (
+                    <Card key={index} className="overflow-hidden border-border/50 shadow-sm flex flex-col group">
+                      <div className="aspect-video bg-muted/30 relative flex items-center justify-center border-b border-border/30">
                         {exercise.video_url ? (
                           <video 
                             src={exercise.video_url} 
                             className="w-full h-full object-cover"
                             controls
+                            preload="metadata"
                           />
                         ) : (
-                          <div className="flex flex-col items-center gap-2 p-4 text-center">
-                            <Video className="w-10 h-10 text-muted-foreground/30" />
-                            <p className="text-sm text-muted-foreground">Video instructions coming soon</p>
-                          </div>
+                          <Video className="w-8 h-8 text-muted-foreground/20" />
                         )}
                       </div>
-                      <div className="p-4">
-                        <h3 className="text-lg font-bold mb-2">{exercise.name}</h3>
-                        <div className="flex gap-2">
+                      <div className="p-4 flex flex-col flex-1 justify-between gap-4">
+                        <h3 className="font-medium text-foreground">{exercise.name}</h3>
+                        <div className="flex gap-2 w-full">
                           <Button 
-                            className="flex-1 bg-primary hover:bg-primary/90 h-10"
+                            variant="secondary"
+                            className="flex-1 text-xs h-9 bg-secondary/50 hover:bg-secondary"
                             onClick={() => navigate(`/workout/${targetId}`, { 
                               state: { videoUrl: exercise.video_url } 
                             })}
                           >
-                            <Play className="w-4 h-4 mr-2" /> Start Now
+                            <Play className="w-3 h-3 mr-2" /> Start
                           </Button>
                           {exercise.video_url && (
                             <Button 
-                              variant="outline" 
+                              variant="ghost" 
                               size="icon"
-                              className="h-10 w-10 shrink-0"
+                              className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
                               onClick={() => window.open(exercise.video_url, '_blank')}
                             >
                               <ExternalLink className="w-4 h-4" />
@@ -166,102 +266,72 @@ export function Dashboard() {
                         </div>
                       </div>
                     </Card>
-                  </motion.div>
-                );
-              })
-            ) : !loading ? (
-              <Card className="p-12 md:col-span-2 lg:col-span-3 text-center border-dashed bg-muted/30">
-                <Video className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-                <p className="text-lg font-medium text-muted-foreground">No exercises assigned yet.</p>
-                <p className="text-sm text-muted-foreground mb-6">Your physiotherapist will upload videos for you soon.</p>
-                <Button variant="outline" onClick={() => navigate('/choose-physio')}>
-                  Choose a Physiotherapist
+                  );
+                })
+              ) : !loading ? (
+                <Card className="col-span-full p-10 text-center border-dashed border-border/50 shadow-none bg-transparent">
+                  <p className="text-muted-foreground mb-4">No exercises assigned right now.</p>
+                  <Button variant="outline" size="sm" onClick={() => navigate('/choose-physio')}>
+                    Connect with a Physiotherapist
+                  </Button>
+                </Card>
+              ) : (
+                Array.from({ length: 2 }).map((_, i) => (
+                  <div key={i} className="h-[220px] bg-muted/40 animate-pulse rounded-xl border border-border/30" />
+                ))
+              )}
+            </div>
+          </motion.div>
+
+          <motion.div 
+            className="space-y-6"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.3 }}
+          >
+            <h2 className="text-xl font-semibold tracking-tight">Quick Links</h2>
+            <div className="space-y-3">
+              <Card className="p-1 border-border/50 shadow-sm hover:border-primary/30 transition-colors">
+                <Button 
+                  variant="ghost" 
+                  className="w-full h-auto justify-start p-4 hover:bg-transparent"
+                  onClick={() => navigate('/start-workout')}
+                >
+                  <div className="flex items-center gap-4 w-full">
+                    <div className="p-2.5 bg-primary/10 rounded-lg text-primary">
+                      <Play className="w-5 h-5" />
+                    </div>
+                    <div className="text-left flex-1">
+                      <p className="font-medium text-sm text-foreground">Library</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Browse all exercises</p>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-muted-foreground opacity-50" />
+                  </div>
                 </Button>
               </Card>
-            ) : (
-               Array.from({ length: 3 }).map((_, i) => (
-                 <div key={i} className="h-[250px] bg-muted animate-pulse rounded-xl" />
-               ))
-            )}
-          </div>
-        </motion.div>
 
-        {/* Quick Stats */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
-        >
-          {stats.map((stat, index) => (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 + index * 0.05 }}
-            >
-              <Card className="p-6 hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`p-3 rounded-xl bg-muted ${stat.color}`}>
-                    <stat.icon className="w-6 h-6" />
+              <Card className="p-1 border-border/50 shadow-sm hover:border-blue-500/30 transition-colors">
+                <Button 
+                  variant="ghost" 
+                  className="w-full h-auto justify-start p-4 hover:bg-transparent"
+                  onClick={() => navigate('/reports')}
+                >
+                  <div className="flex items-center gap-4 w-full">
+                    <div className="p-2.5 bg-blue-500/10 rounded-lg text-blue-600">
+                      <BarChart3 className="w-5 h-5" />
+                    </div>
+                    <div className="text-left flex-1">
+                      <p className="font-medium text-sm text-foreground">Analytics</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">View your progress</p>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-muted-foreground opacity-50" />
                   </div>
-                </div>
-                <p className="text-2xl mb-1">{stat.value}</p>
-                <p className="text-sm text-muted-foreground mb-1">{stat.label}</p>
-                <p className="text-xs text-muted-foreground">{stat.trend}</p>
+                </Button>
               </Card>
-            </motion.div>
-          ))}
-        </motion.div>
-
-        {/* Quick Actions */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="grid grid-cols-1 md:grid-cols-2 gap-6"
-        >
-          <Card className="p-8 bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-4 bg-primary/10 rounded-2xl">
-                <Play className="w-8 h-8 text-primary" />
-              </div>
-              <div>
-                <h3 className="text-xl mb-1">Start Your Workout</h3>
-                <p className="text-sm text-muted-foreground">
-                  Browse exercises and begin your session
-                </p>
-              </div>
             </div>
-            <Button
-              onClick={() => navigate('/start-workout')}
-              className="w-full h-12 bg-primary hover:bg-primary/90"
-            >
-              Browse Exercises
-            </Button>
-          </Card>
+          </motion.div>
 
-          <Card className="p-8 bg-gradient-to-br from-blue-50 to-blue-25">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-4 bg-blue-100 rounded-2xl">
-                <BarChart3 className="w-8 h-8 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="text-xl mb-1">View Progress</h3>
-                <p className="text-sm text-muted-foreground">
-                  Check your detailed analytics and reports
-                </p>
-              </div>
-            </div>
-            <Button
-              onClick={() => navigate('/reports')}
-              variant="outline"
-              className="w-full h-12 border-2"
-            >
-              View Analytics
-            </Button>
-          </Card>
-        </motion.div>
+        </div>
       </div>
     </PatientLayout>
   );

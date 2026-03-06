@@ -1,3 +1,4 @@
+//E:\techfiesta_final\Physio_Check\frontend\src\app\config\cloudinary.ts
 /// <reference types="vite/client" />
 /**
  * Force Vite Environment Configuration for Cloudinary

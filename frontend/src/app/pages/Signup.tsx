@@ -1,4 +1,3 @@
-//C:\Users\soumy\final_2\PHYSIOCHECK\frontend\src\app\pages\Signup.tsx
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router';
 import { useAuth, UserRole } from '../context/AuthContext';
@@ -43,9 +42,8 @@ export function Signup() {
     setLoading(true);
     try {
       await signup(name, email, password, role);
-      // Navigation is now primarily handled by the central router in App.tsx
-      // but we keep this as an explicit intent.
-      navigate(role === 'patient' ? '/choose-physio' : '/physiotherapist/dashboard');
+      // RESTORED: Route straight to onboarding if they are a patient
+      navigate(role === 'patient' ? '/onboarding' : '/physiotherapist/dashboard');
     } catch (err) {
       setError('Failed to create account. Please try again.');
     } finally {
@@ -68,10 +66,10 @@ export function Signup() {
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.2, duration: 0.5 }}
-            className="mb-12"
+            className="mb-12 text-center"
           >
-            <Activity className="w-24 h-24 mb-6" strokeWidth={1.5} />
-            <h1 className="text-5xl mb-4">PhysioFit AI</h1>
+            <Activity className="w-24 h-24 mb-6 mx-auto" strokeWidth={1.5} />
+            <h1 className="text-5xl mb-4">Physio-Check</h1>
             <p className="text-xl text-white/90 max-w-md text-center">
               Real-time Exercise Analysis with AI-Powered Pose Estimation
             </p>
@@ -134,7 +132,7 @@ export function Signup() {
           <div className="mb-8">
             <h2 className="text-3xl mb-2">Create Account</h2>
             <p className="text-muted-foreground">
-              Join PhysioFit AI to start your recovery journey
+              Join Physio-Check to start your recovery journey
             </p>
           </div>
 
@@ -231,17 +229,16 @@ export function Signup() {
               <Label>I am a</Label>
               <div className="grid grid-cols-2 gap-3">
                <button
-  type="button"
-  onClick={() => {
-    setRole('patient'); // update state
-    console.log("Patient button clicked, role set to 'patient'");
-  }}
-  className={`p-4 rounded-xl border-2 transition-all ${
-    role === 'patient'
-      ? 'border-primary bg-primary/5 text-primary'
-      : 'border-border hover:border-primary/50'
-  }`}
->
+                  type="button"
+                  onClick={() => {
+                    setRole('patient');
+                  }}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    role === 'patient'
+                      ? 'border-primary bg-primary/5 text-primary'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
                   <div className="font-medium">Patient</div>
                   <div className="text-sm text-muted-foreground mt-1">
                     Start my recovery
