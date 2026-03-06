@@ -1,25 +1,23 @@
-#C:\Users\soumy\final_2\PHYSIOCHECK\backend\db.py
 import firebase_admin
 from firebase_admin import credentials, firestore
 import os
 from dotenv import load_dotenv
 from datetime import datetime, timezone
 
-
 load_dotenv()
 
-# Initialize Firebase Admin SDK
-# Ensure you have 'serviceAccountKey.json' in your backend directory
-cred_path = os.path.join(os.path.dirname(__file__), 'serviceAccountKey.json')
+# Check Render's secure secret folder first, then fall back to local folder
+render_path = '/etc/secrets/serviceAccountKey.json'
+local_path = os.path.join(os.path.dirname(__file__), 'serviceAccountKey.json')
+
+cred_path = render_path if os.path.exists(render_path) else local_path
 
 if not firebase_admin._apps:
-    try:
-        cred = credentials.Certificate(cred_path)
-        firebase_admin.initialize_app(cred)
-        print("Firebase initialized successfully.")
-    except Exception as e:
-        print(f"Error initializing Firebase: {e}")
-        print("Make sure 'serviceAccountKey.json' is in the backend directory.")
+    # If the file is missing or broken, this will now intentionally crash and tell us exactly why, 
+    # instead of silently failing and freezing your app!
+    cred = credentials.Certificate(cred_path)
+    firebase_admin.initialize_app(cred)
+    print(f"Firebase initialized successfully using: {cred_path}")
 
 db = firestore.client()
 
