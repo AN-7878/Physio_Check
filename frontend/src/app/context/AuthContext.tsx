@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signup = async (name: string, email: string, password: string, role: UserRole) => {
     try {
-      const response = await fetch('http://localhost:5000/signup', {
+      const response = await fetch('https://physio-check.onrender.com/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string, rememberMe = false) => {
     try {
-      const response = await fetch('http://localhost:5000/login', {
+      const response = await fetch('https://physio-check.onrender.com/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -117,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return;
 
     try {
-      const response = await fetch('http://localhost:5000/profile/update', {
+      const response = await fetch('https://physio-check.onrender.com/profile/update', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

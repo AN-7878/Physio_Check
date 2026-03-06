@@ -43,7 +43,7 @@ export function PhysioMessages() {
 
   const fetchPatients = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/physiotherapist/patients/${user?.id}`);
+      const response = await fetch(`https://physio-check.onrender.com/physiotherapist/patients/${user?.id}`);
       const data = await response.json();
       if (response.ok) {
         setPatients(data.patients);
@@ -62,7 +62,7 @@ export function PhysioMessages() {
     const initializeChat = async () => {
       setLoadingMessages(true);
       try {
-        const response = await fetch('http://localhost:5000/chat/create', {
+        const response = await fetch('https://physio-check.onrender.com/chat/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ patient_id: selectedPatient.id, physio_id: user.id })
@@ -118,7 +118,7 @@ export function PhysioMessages() {
     setNewMessage('');
 
     try {
-      await fetch('http://localhost:5000/chat/send', {
+      await fetch('https://physio-check.onrender.com/chat/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

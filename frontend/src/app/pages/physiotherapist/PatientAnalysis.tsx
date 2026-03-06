@@ -23,7 +23,7 @@ export function PatientAnalysis() {
 
   useEffect(() => {
     if (patientId) {
-      fetch(`http://localhost:5000/patient/${patientId}`)
+      fetch(`https://physio-check.onrender.com/patient/${patientId}`)
         .then(res => res.json())
         .then(data => setPatient(data.patient))
         .catch(err => console.error("Error fetching patient:", err));

@@ -67,7 +67,7 @@ export function Dashboard() {
 
   const fetchPatients = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/physiotherapist/patients/${user?.id}`);
+      const response = await fetch(`https://physio-check.onrender.com/physiotherapist/patients/${user?.id}`);
       const data = await response.json();
       if (response.ok) {
         setPatients(data.patients);

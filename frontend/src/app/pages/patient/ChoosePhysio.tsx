@@ -29,7 +29,7 @@ export function ChoosePhysio() {
   useEffect(() => {
     const fetchPhysios = async () => {
       try {
-        const response = await fetch('http://localhost:5000/physiotherapists');
+        const response = await fetch('https://physio-check.onrender.com/physiotherapists');
         const data = await response.json();
         if (response.ok) {
           setPhysios(data.physiotherapists);
@@ -52,7 +52,7 @@ export function ChoosePhysio() {
     
     setLinking(physioId);
     try {
-      const response = await fetch('http://localhost:5000/link-physio', {
+      const response = await fetch('https://physio-check.onrender.com/link-physio', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

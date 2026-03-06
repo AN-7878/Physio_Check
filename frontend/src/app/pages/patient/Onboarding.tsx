@@ -31,7 +31,7 @@ export function Onboarding() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5000/patient/onboarding', {
+      const response = await fetch('https://physio-check.onrender.com/patient/onboarding', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

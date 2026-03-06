@@ -33,7 +33,7 @@ export function Messages() {
 
     const initializeChat = async () => {
       try {
-        const response = await fetch('http://localhost:5000/chat/create', {
+        const response = await fetch('https://physio-check.onrender.com/chat/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ patient_id: user.id, physio_id: user.physio_id })
@@ -89,7 +89,7 @@ export function Messages() {
     setNewMessage('');
 
     try {
-      await fetch('http://localhost:5000/chat/send', {
+      await fetch('https://physio-check.onrender.com/chat/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
