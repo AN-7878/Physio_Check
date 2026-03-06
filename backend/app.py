@@ -1,20 +1,19 @@
-#C:\Users\soumy\final_2\PHYSIOCHECK\backend\app.py
 import firebase_admin
 from firebase_admin import credentials, firestore
 import os
 from db import db, create_chat, send_message, get_messages
 from dotenv import load_dotenv
 
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 
 import uuid
-from db import db
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+
+# UPDATED: Explicitly allow all origins, methods, and headers so Vercel can send JSON POST requests
+CORS(app, resources={r"/*": {"origins": "*"}}, methods=["GET", "POST", "OPTIONS"], allow_headers=["Content-Type", "Authorization"])
 
 @app.route('/signup', methods=['POST'])
 def signup():
