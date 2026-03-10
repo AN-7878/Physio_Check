@@ -17,27 +17,31 @@ CORS(app, resources={r"/*": {"origins": "*"}}, methods=["GET", "POST", "OPTIONS"
 
 @app.route('/signup', methods=['POST'])
 def signup():
-    data = request.get_json()
-    name = data.get('name')
-    email = data.get('email')
-    password = data.get('password')
-    role = data.get('role')
-
-    if not all([name, email, password,role]):
-        return jsonify({"error": "Missing required fields"}), 400
-
     try:
-        # Check if user already exists
+        # 1. Move the data loading INSIDE the try block so it catches any JSON formatting errors
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({"error": "Invalid or missing JSON payload"}), 400
+
+        name = data.get('name')
+        email = data.get('email')
+        password = data.get('password')
+        role = data.get('role')
+
+        if not all([name, email, password, role]):
+            return jsonify({"error": "Missing required fields"}), 400
+
+        # 2. Check if user already exists
         users_ref = db.collection('users')
         query = users_ref.where('email', '==', email).limit(1).get()
         
         if len(query) > 0:
             return jsonify({"error": "Email already exists"}), 409
         
-        # Hash password
+        # 3. Hash password
         hashed_password = generate_password_hash(password)
         
-        # Create new user document
+        # 4. Create new user document
         user_id = str(uuid.uuid4())
         user_data = {
             'id': user_id,
@@ -51,7 +55,7 @@ def signup():
         
         users_ref.document(user_id).set(user_data)
         
-        # Return success response (exclude password)
+        # 5. Return success response
         return jsonify({
             "message": "User created successfully", 
             "user": {
@@ -66,6 +70,7 @@ def signup():
 
     except Exception as e:
         print(f"Signup error: {e}")
+        # This guarantees that even if it fails, it sends a proper error with CORS headers back to Vercel!
         return jsonify({"error": str(e)}), 500
 
 @app.route('/login', methods=['POST'])
