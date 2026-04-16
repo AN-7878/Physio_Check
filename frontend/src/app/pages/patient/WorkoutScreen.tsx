@@ -391,8 +391,8 @@ export function WorkoutScreen() {
   // ==========================================
   // ⚙️ MANUAL THRESHOLD SETTINGS ⚙️
   // ==========================================
-  const PAIN_TRIGGER_SECONDS = 0.5; //original : 1.5
-  const PAIN_SCORE_THRESHOLD = 10;  //original : 40
+  const PAIN_TRIGGER_SECONDS = 0.75; //original : 1.5
+  const PAIN_SCORE_THRESHOLD = 20;  //original : 40
   const GESTURE_HOLD_SECONDS = 0.25; // original : 0.5
   const REPS_PER_SET = 4;
   // ==========================================
